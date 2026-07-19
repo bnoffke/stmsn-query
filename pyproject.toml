@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "stmsn-query"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "duckdb==1.5.4",
+    "duckdb-cli==1.5.4",
+]
+
+[project.scripts]
+stmsn-query = "stmsn_query.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/stmsn_query"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
