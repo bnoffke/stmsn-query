@@ -62,9 +62,15 @@ def test_main_missing_secret(monkeypatch, capsys):
     assert "dummy_key" not in err
 
 
-def test_main_no_duckdb_binary(monkeypatch, capsys):
+def _no_venv_duckdb(monkeypatch, tmp_path):
+    """Point sys.executable somewhere with no adjacent duckdb binary."""
+    monkeypatch.setattr("stmsn_query.cli.sys.executable", str(tmp_path / "python"))
+
+
+def test_main_no_duckdb_binary(monkeypatch, capsys, tmp_path):
     monkeypatch.setenv(KEY_ID_VAR, "dummy_key")
     monkeypatch.setenv(SECRET_VAR, "dummy_secret")
+    _no_venv_duckdb(monkeypatch, tmp_path)
     with patch("shutil.which", return_value=None):
         with pytest.raises(SystemExit) as exc:
             main()
@@ -72,10 +78,29 @@ def test_main_no_duckdb_binary(monkeypatch, capsys):
     assert "duckdb" in capsys.readouterr().err.lower()
 
 
+def test_main_prefers_venv_duckdb(monkeypatch, tmp_path):
+    monkeypatch.setenv(KEY_ID_VAR, "dummy_key")
+    monkeypatch.setenv(SECRET_VAR, "dummy_secret")
+    monkeypatch.setattr("sys.argv", ["stmsn-query"])
+    venv_bin = tmp_path / "venv" / "bin"
+    venv_bin.mkdir(parents=True)
+    (venv_bin / "duckdb").touch()
+    monkeypatch.setattr("stmsn_query.cli.sys.executable", str(venv_bin / "python"))
+
+    execv_calls = []
+    with patch("shutil.which", return_value="/path/duckdb"), \
+         patch("os.execv", side_effect=lambda p, a: execv_calls.append((p, a))), \
+         patch("stmsn_query.cli.Path.home", return_value=tmp_path):
+        main()
+
+    assert execv_calls[0][0] == str(venv_bin / "duckdb")
+
+
 def test_main_execv(monkeypatch, tmp_path):
     monkeypatch.setenv(KEY_ID_VAR, "dummy_key")
     monkeypatch.setenv(SECRET_VAR, "dummy_secret")
     monkeypatch.setattr("sys.argv", ["stmsn-query", "-csv"])
+    _no_venv_duckdb(monkeypatch, tmp_path)
 
     execv_calls = []
 
@@ -99,6 +124,7 @@ def test_main_init_file_written(monkeypatch, tmp_path):
     monkeypatch.setenv(KEY_ID_VAR, "dummy_key")
     monkeypatch.setenv(SECRET_VAR, "dummy_secret")
     monkeypatch.setattr("sys.argv", ["stmsn-query"])
+    _no_venv_duckdb(monkeypatch, tmp_path)
 
     with patch("shutil.which", return_value="/fake/duckdb"), \
          patch("os.execv"), \

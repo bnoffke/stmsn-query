@@ -24,7 +24,10 @@ def main() -> None:
         )
         sys.exit(1)
 
-    duckdb_bin = shutil.which("duckdb")
+    # Prefer the pinned duckdb-cli binary installed alongside this
+    # entrypoint's interpreter; a duckdb on PATH may be the wrong version.
+    venv_bin = Path(sys.executable).parent / "duckdb"
+    duckdb_bin = str(venv_bin) if venv_bin.is_file() else shutil.which("duckdb")
     if not duckdb_bin:
         print(
             "Error: duckdb binary not found on PATH. "
