@@ -26,12 +26,17 @@ gcloud storage hmac create SERVICE_ACCOUNT_EMAIL
 
 The output contains two values: `accessId` (your key ID, starts with `GOOG1E`) and `secret`. The secret is shown once. Copy both immediately.
 
-Set these env vars in your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
+For local use, set these env vars in your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
 
 ```bash
 export STMSN_GCS_KEY_ID="GOOG1E..."
 export STMSN_GCS_SECRET="..."
 ```
+
+The env vars are the fallback source. The Python API also accepts credentials
+directly (see [Query (Python)](#query-python)), which is what a deployed app
+should use — pull them from that platform's secret store rather than exporting
+env vars into the process.
 
 Secret hygiene:
 - Never commit these values to version control.
@@ -77,7 +82,7 @@ All DuckDB shell flags (`-json`, `-csv`, `.mode`, dot-commands, pager) work unch
 ```python
 from stmsn_query import connect
 
-con = connect()
+con = connect()  # reads STMSN_GCS_KEY_ID / STMSN_GCS_SECRET from the environment
 
 # Pandas
 df = con.sql("SELECT * FROM silver.parcels LIMIT 100").df()
@@ -87,7 +92,15 @@ import polars as pl
 df = pl.from_arrow(con.sql("SELECT * FROM gold.permits").arrow())
 ```
 
-Streamlit pattern (reconnects once per session):
+Credentials can also be passed explicitly, which takes precedence over the env
+vars. Either argument may be omitted to fall back to its env var individually:
+
+```python
+con = connect(key_id="GOOG1E...", secret="...")
+```
+
+Streamlit pattern (reconnects once per session), pulling credentials from
+`st.secrets`:
 
 ```python
 import streamlit as st
@@ -95,7 +108,10 @@ from stmsn_query import connect
 
 @st.cache_resource
 def get_con():
-    return connect()
+    return connect(
+        key_id=st.secrets["STMSN_GCS_KEY_ID"],
+        secret=st.secrets["STMSN_GCS_SECRET"],
+    )
 
 con = get_con()
 df = con.sql("SELECT * FROM gold.permits LIMIT 1000").df()

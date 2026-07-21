@@ -4,6 +4,7 @@ from stmsn_query.core import (
     DEFAULT_ALIAS,
     KEY_ID_VAR,
     SECRET_VAR,
+    _read_creds,
     _sq,
     build_secret_sql,
     connect,
@@ -62,3 +63,44 @@ def test_connect_missing_secret(monkeypatch):
         connect()
     assert SECRET_VAR in str(exc.value)
     assert "dummy_key" not in str(exc.value)
+
+
+def test_read_creds_explicit_without_env(monkeypatch):
+    monkeypatch.delenv(KEY_ID_VAR, raising=False)
+    monkeypatch.delenv(SECRET_VAR, raising=False)
+    assert _read_creds("arg_key", "arg_secret") == ("arg_key", "arg_secret")
+
+
+def test_read_creds_explicit_overrides_env(monkeypatch):
+    monkeypatch.setenv(KEY_ID_VAR, "env_key")
+    monkeypatch.setenv(SECRET_VAR, "env_secret")
+    assert _read_creds("arg_key", "arg_secret") == ("arg_key", "arg_secret")
+
+
+def test_read_creds_mixes_explicit_and_env(monkeypatch):
+    monkeypatch.setenv(KEY_ID_VAR, "env_key")
+    monkeypatch.setenv(SECRET_VAR, "env_secret")
+    assert _read_creds(secret="arg_secret") == ("env_key", "arg_secret")
+    assert _read_creds(key_id="arg_key") == ("arg_key", "env_secret")
+
+
+def test_read_creds_partial_explicit_still_raises(monkeypatch):
+    monkeypatch.delenv(KEY_ID_VAR, raising=False)
+    monkeypatch.delenv(SECRET_VAR, raising=False)
+    with pytest.raises(RuntimeError) as exc:
+        _read_creds(secret="arg_secret")
+    assert KEY_ID_VAR in str(exc.value)
+    assert "arg_secret" not in str(exc.value)
+
+
+def test_read_creds_falls_back_to_env(monkeypatch):
+    monkeypatch.setenv(KEY_ID_VAR, "env_key")
+    monkeypatch.setenv(SECRET_VAR, "env_secret")
+    assert _read_creds() == ("env_key", "env_secret")
+
+
+def test_connect_alias_is_keyword_only(monkeypatch):
+    monkeypatch.delenv(KEY_ID_VAR, raising=False)
+    monkeypatch.delenv(SECRET_VAR, raising=False)
+    with pytest.raises(TypeError):
+        connect("key", "secret", "myalias")
