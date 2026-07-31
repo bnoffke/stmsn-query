@@ -1,5 +1,6 @@
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -12,6 +13,19 @@ def build_init_sql() -> str:
         f"ATTACH '{CATALOG_URI}' AS {DEFAULT_ALIAS} (READ_ONLY);\n"
         f"USE {DEFAULT_ALIAS};\n"
     )
+
+
+def launch(argv: list[str]) -> None:
+    """Hand the console over to duckdb, however the platform allows.
+
+    Windows has no real exec: os.execv spawns a new process and kills this one,
+    so the parent shell reclaims the console and prints its prompt while duckdb
+    is still running -- both then compete for stdin, and the user has to hit
+    enter to untangle it. Wait on a child instead and forward its exit code.
+    """
+    if os.name == "nt":
+        sys.exit(subprocess.call(argv))
+    os.execv(argv[0], argv)
 
 
 def main() -> None:
@@ -52,4 +66,4 @@ def main() -> None:
     init_path = init_dir / "init.sql"
     init_path.write_text(build_init_sql())
 
-    os.execv(duckdb_bin, [duckdb_bin, "-init", str(init_path), *sys.argv[1:]])
+    launch([duckdb_bin, "-init", str(init_path), *sys.argv[1:]])

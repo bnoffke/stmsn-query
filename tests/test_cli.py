@@ -2,7 +2,7 @@ import os
 import sys
 import pytest
 from unittest.mock import patch, MagicMock
-from stmsn_query.cli import build_init_sql, main
+from stmsn_query.cli import build_init_sql, launch, main
 from stmsn_query.core import CATALOG_URI, DEFAULT_ALIAS, KEY_ID_VAR, SECRET_VAR
 
 
@@ -94,6 +94,26 @@ def test_main_prefers_venv_duckdb(monkeypatch, tmp_path):
         main()
 
     assert execv_calls[0][0] == str(venv_bin / "duckdb")
+
+
+def test_launch_execs_on_posix(monkeypatch):
+    monkeypatch.setattr("stmsn_query.cli.os.name", "posix")
+    with patch("os.execv") as execv, patch("subprocess.call") as call:
+        launch(["/fake/duckdb", "-init", "/tmp/init.sql"])
+    execv.assert_called_once_with("/fake/duckdb", ["/fake/duckdb", "-init", "/tmp/init.sql"])
+    call.assert_not_called()
+
+
+def test_launch_waits_on_child_on_windows(monkeypatch):
+    """os.execv would hand the console back to cmd while duckdb still runs."""
+    monkeypatch.setattr("stmsn_query.cli.os.name", "nt")
+    argv = [r"C:\venv\Scripts\duckdb.exe", "-init", r"C:\init.sql"]
+    with patch("os.execv") as execv, patch("subprocess.call", return_value=3) as call:
+        with pytest.raises(SystemExit) as exc:
+            launch(argv)
+    call.assert_called_once_with(argv)
+    execv.assert_not_called()
+    assert exc.value.code == 3  # duckdb's exit code is forwarded
 
 
 def test_main_prefers_venv_duckdb_exe_on_windows(monkeypatch, tmp_path):

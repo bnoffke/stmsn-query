@@ -4,6 +4,13 @@ Read-only ad hoc SQL access to the stmsn civic geospatial lakehouse. No data is 
 
 ## Install
 
+This package is distributed with [uv](https://docs.astral.sh/uv/). If you don't
+have it yet, follow the
+[uv installation guide](https://docs.astral.sh/uv/getting-started/installation/)
+first — one command on macOS, Linux, and Windows.
+
+Then:
+
 ```bash
 uv tool install git+https://github.com/bnoffke/stmsn-query
 ```
