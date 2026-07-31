@@ -96,6 +96,25 @@ def test_main_prefers_venv_duckdb(monkeypatch, tmp_path):
     assert execv_calls[0][0] == str(venv_bin / "duckdb")
 
 
+def test_main_prefers_venv_duckdb_exe_on_windows(monkeypatch, tmp_path):
+    monkeypatch.setenv(KEY_ID_VAR, "dummy_key")
+    monkeypatch.setenv(SECRET_VAR, "dummy_secret")
+    monkeypatch.setattr("sys.argv", ["stmsn-query"])
+    scripts = tmp_path / "venv" / "Scripts"
+    scripts.mkdir(parents=True)
+    # Windows ships only duckdb.exe; the extensionless name is absent there.
+    (scripts / "duckdb.exe").touch()
+    monkeypatch.setattr("stmsn_query.cli.sys.executable", str(scripts / "python.exe"))
+
+    execv_calls = []
+    with patch("shutil.which", return_value=None), \
+         patch("os.execv", side_effect=lambda p, a: execv_calls.append((p, a))), \
+         patch("stmsn_query.cli.Path.home", return_value=tmp_path):
+        main()
+
+    assert execv_calls[0][0] == str(scripts / "duckdb.exe")
+
+
 def test_main_execv(monkeypatch, tmp_path):
     monkeypatch.setenv(KEY_ID_VAR, "dummy_key")
     monkeypatch.setenv(SECRET_VAR, "dummy_secret")
@@ -118,6 +137,26 @@ def test_main_execv(monkeypatch, tmp_path):
     assert args[0] == "/fake/duckdb"
     assert "-init" in args
     assert "-csv" in args
+
+
+def test_main_passes_through_ui_flag(monkeypatch, tmp_path):
+    monkeypatch.setenv(KEY_ID_VAR, "dummy_key")
+    monkeypatch.setenv(SECRET_VAR, "dummy_secret")
+    monkeypatch.setattr("sys.argv", ["stmsn-query", "-ui"])
+    _no_venv_duckdb(monkeypatch, tmp_path)
+
+    execv_calls = []
+
+    with patch("shutil.which", return_value="/fake/duckdb"), \
+         patch("os.execv", side_effect=lambda p, a: execv_calls.append((p, a))), \
+         patch("stmsn_query.cli.Path.home", return_value=tmp_path):
+        main()
+
+    args = execv_calls[0][1]
+    assert "-ui" in args
+    # The init file must still be applied, so the UI inherits the attached
+    # catalog and the GCS secret.
+    assert args.index("-init") < args.index("-ui")
 
 
 def test_main_init_file_written(monkeypatch, tmp_path):

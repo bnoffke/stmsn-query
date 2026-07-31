@@ -59,6 +59,42 @@ stmsn-query -c "SELECT * FROM silver.road_segments LIMIT 10;" -json
 stmsn-query -c "SELECT permit_type, count(*) FROM gold.permits GROUP BY 1 ORDER BY 2 DESC;" -csv
 ```
 
+### Web UI
+
+The DuckDB CLI's `-ui` flag passes straight through, launching the local web UI
+with the catalog already attached and credentials already in place. The
+interactive shell stays usable in the terminal alongside it.
+
+```bash
+stmsn-query -ui
+```
+
+**Qualify your tables.** The UI opens its own connections, which start in the
+`memory` catalog rather than `stmsn`. The unqualified examples elsewhere in this
+README rely on the terminal shell's `USE stmsn`, and will come up empty in the
+UI. Either fully-qualify:
+
+```sql
+SELECT * FROM stmsn.silver.parcels LIMIT 5;
+```
+
+or run `USE stmsn;` as the first cell, after which the unqualified forms work as
+documented.
+
+**If no browser opens** (common under WSL), use the URL the shell prints —
+`http://localhost:4213` by default. The port is configurable with
+`SET ui_local_port = ...` and the browser-launch command with the `.ui_command`
+dot-command.
+
+**The UI frontend is served from `https://ui.duckdb.org`**, the `ui_remote_url`
+extension default. Queries and data stay local — nothing from the catalog or
+`stmsn-lake` is sent there — but the page itself is not self-hosted.
+
+The catalog is replaced daily by the dbt pipeline, so a long-lived UI session
+will query stale table definitions after the daily update, same as the Python
+sessions noted under [How it works](#how-it-works). Restart `stmsn-query -ui` to
+reattach.
+
 Example queries:
 
 ```sql

@@ -26,8 +26,19 @@ def main() -> None:
 
     # Prefer the pinned duckdb-cli binary installed alongside this
     # entrypoint's interpreter; a duckdb on PATH may be the wrong version.
-    venv_bin = Path(sys.executable).parent / "duckdb"
-    duckdb_bin = str(venv_bin) if venv_bin.is_file() else shutil.which("duckdb")
+    # uv tool install only links this package's own entrypoints onto PATH, so
+    # on Windows the fallback below will not find duckdb.exe at all.
+    # "duckdb.exe" is the Windows name and never exists on POSIX, so probing
+    # both is safe and avoids branching on the platform.
+    script_dir = Path(sys.executable).parent
+    duckdb_bin = next(
+        (
+            str(script_dir / n)
+            for n in ("duckdb", "duckdb.exe")
+            if (script_dir / n).is_file()
+        ),
+        None,
+    ) or shutil.which("duckdb")
     if not duckdb_bin:
         print(
             "Error: duckdb binary not found on PATH. "
