@@ -23,22 +23,40 @@ uvx --from git+https://github.com/bnoffke/stmsn-query stmsn-query -c "SHOW TABLE
 
 ## Credentials
 
-Access requires GCS HMAC keys tied to a service account or user identity that has been granted `storage.objectViewer` on the `stmsn-meta` and `stmsn-lake` buckets (the reader role). Contact the maintainer to get that grant added.
+Access requires GCS HMAC keys with the reader role (`storage.objectViewer` on the
+`stmsn-meta` and `stmsn-lake` buckets). Keys are issued by the maintainer —
+reach out and you'll be given two values: a **key ID** (starts with `GOOG1E`)
+and a **secret**. Store both when you receive them; the secret cannot be
+retrieved again.
 
-Once you have access, mint HMAC keys:
+Set them as environment variables.
 
-```bash
-gcloud storage hmac create SERVICE_ACCOUNT_EMAIL
-```
-
-The output contains two values: `accessId` (your key ID, starts with `GOOG1E`) and `secret`. The secret is shown once. Copy both immediately.
-
-For local use, set these env vars in your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
+**macOS / Linux / WSL** — add to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
 
 ```bash
 export STMSN_GCS_KEY_ID="GOOG1E..."
 export STMSN_GCS_SECRET="..."
 ```
+
+Then `source ~/.bashrc` or open a new terminal.
+
+**Windows** — in PowerShell, persist them to your user account:
+
+```powershell
+[Environment]::SetEnvironmentVariable("STMSN_GCS_KEY_ID", "GOOG1E...", "User")
+[Environment]::SetEnvironmentVariable("STMSN_GCS_SECRET", "...", "User")
+```
+
+These apply to *new* terminals only, so close and reopen your terminal
+afterwards — the session you ran them in won't see them. To verify:
+
+```powershell
+$env:STMSN_GCS_KEY_ID
+```
+
+The same values can also be set through the GUI: search "environment variables"
+in the Start menu, then **Edit environment variables for your account**. Avoid
+`set STMSN_GCS_KEY_ID=...` in `cmd`, which only lasts for that one window.
 
 The env vars are the fallback source. The Python API also accepts credentials
 directly (see [Query (Python)](#query-python)), which is what a deployed app
@@ -47,8 +65,8 @@ env vars into the process.
 
 Secret hygiene:
 - Never commit these values to version control.
-- Prefer a secrets manager or a shell profile file with restricted permissions (`chmod 600 ~/.bashrc`).
-- Keys are revocable per-identity via `gcloud storage hmac delete ACCESS_ID` if compromised.
+- Prefer a secrets manager, or a shell profile file with restricted permissions (`chmod 600 ~/.bashrc`).
+- If a key is lost or exposed, tell the maintainer — keys are revocable per-identity and can be reissued.
 
 ## Query (CLI)
 
