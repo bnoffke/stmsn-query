@@ -2,9 +2,15 @@ import os
 import shutil
 import subprocess
 import sys
+from importlib import resources
 from pathlib import Path
 
 from .core import CATALOG_URI, DEFAULT_ALIAS, KEY_ID_VAR, SECRET_VAR
+
+
+def read_skill() -> str:
+    """The agent-facing summary of this tool, shipped alongside the package."""
+    return resources.files(__package__).joinpath("SKILL.md").read_text(encoding="utf-8")
 
 
 def build_init_sql() -> str:
@@ -29,7 +35,13 @@ def launch(argv: list[str]) -> None:
 
 
 def main() -> None:
-    missing = [v for v in (KEY_ID_VAR, SECRET_VAR) if not os.environ.get(v)]
+    # Agents run this to load the tool's usage into their context, often before
+    # credentials exist -- so it comes first and touches nothing on disk.
+    if "--skill" in sys.argv[1:]:
+        sys.stdout.write(read_skill())
+        return
+
+    missing =[v for v in (KEY_ID_VAR, SECRET_VAR) if not os.environ.get(v)]
     if missing:
         print(
             f"Error: {', '.join(missing)} not set. "

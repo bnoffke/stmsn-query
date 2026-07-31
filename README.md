@@ -138,6 +138,17 @@ ORDER BY permit_count DESC;
 
 All DuckDB shell flags (`-json`, `-csv`, `.mode`, dot-commands, pager) work unchanged.
 
+### For agents
+
+```bash
+stmsn-query --skill
+```
+
+Prints a condensed, LLM-oriented summary of this tool — CLI invocation, the Python API, how to discover
+tables, and the gotchas worth knowing. Point a coding agent at this instead of the README; it needs no
+credentials, so it works before setup. This is the only flag the package itself defines; everything else
+goes to DuckDB.
+
 ## Query (Python)
 
 ```python

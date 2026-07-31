@@ -2,7 +2,7 @@ import os
 import sys
 import pytest
 from unittest.mock import patch, MagicMock
-from stmsn_query.cli import build_init_sql, launch, main
+from stmsn_query.cli import build_init_sql, launch, main, read_skill
 from stmsn_query.core import CATALOG_URI, DEFAULT_ALIAS, KEY_ID_VAR, SECRET_VAR
 
 
@@ -32,6 +32,36 @@ def test_build_init_sql_uses_getenv():
     assert "getenv(" in sql
     # No actual secret values should be present
     assert "GOOG1E" not in sql
+
+
+def test_skill_documents_the_load_bearing_details():
+    """Guard against the doc drifting away from what the code actually does."""
+    skill = read_skill()
+    assert skill.startswith("---")  # frontmatter
+    assert "name: stmsn-query" in skill
+    assert "SHOW TABLES" in skill  # discovery, rather than named tables
+    assert "READ_ONLY" in skill
+    assert "1.5.4" in skill
+
+
+def test_main_skill_works_without_credentials(monkeypatch, capsys, tmp_path):
+    """An agent may load the skill before the user has any keys."""
+    monkeypatch.delenv(KEY_ID_VAR, raising=False)
+    monkeypatch.delenv(SECRET_VAR, raising=False)
+    monkeypatch.setattr("sys.argv", ["stmsn-query", "--skill"])
+
+    def fail(argv):
+        raise AssertionError(f"--skill must not launch duckdb: {argv}")
+
+    with patch("stmsn_query.cli.launch", side_effect=fail), \
+         patch("stmsn_query.cli.Path.home", return_value=tmp_path):
+        main()  # no SystemExit
+
+    out = capsys.readouterr().out
+    assert out.startswith("---")
+    assert not out.endswith("\n\n")  # write(), not print(), so no added newline
+    # Pure stdout: nothing written to the cache dir.
+    assert not (tmp_path / ".cache").exists()
 
 
 def test_main_missing_both_vars(monkeypatch):
