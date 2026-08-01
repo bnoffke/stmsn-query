@@ -1,6 +1,6 @@
 # stmsn-query
 
-Read-only ad hoc SQL access to the stmsn civic geospatial lakehouse. No data is pulled locally: the DuckLake catalog is attached directly from GCS, and queries run against remote Parquet files. This package pins `duckdb==1.5.4` for catalog storage-version compatibility.
+Read-only ad hoc SQL access to the stmsn civic geospatial lakehouse (dbt docs live [here](https://bnoffke.github.io/stmsn_dbt/#!/overview)). No data is pulled locally: the DuckLake catalog is attached directly from GCS, and queries run against remote Parquet files. This package pins `duckdb==1.5.4` for catalog storage-version compatibility.
 
 ## Install
 
@@ -80,8 +80,7 @@ One-off queries:
 
 ```bash
 stmsn-query -c "SHOW TABLES;"
-stmsn-query -c "SELECT * FROM silver.road_segments LIMIT 10;" -json
-stmsn-query -c "SELECT permit_type, count(*) FROM gold.permits GROUP BY 1 ORDER BY 2 DESC;" -csv
+stmsn-query -c "SELECT * FROM silver.fact_parcels LIMIT 10;" -json
 ```
 
 ### Web UI
@@ -100,7 +99,7 @@ README rely on the terminal shell's `USE stmsn`, and will come up empty in the
 UI. Either fully-qualify:
 
 ```sql
-SELECT * FROM stmsn.silver.parcels LIMIT 5;
+SELECT * FROM stmsn.silver.fact_parcels LIMIT 5;
 ```
 
 or run `USE stmsn;` as the first cell, after which the unqualified forms work as
@@ -127,16 +126,12 @@ Example queries:
 SHOW TABLES;
 
 -- Preview a silver layer table
-SELECT * FROM silver.parcels LIMIT 5;
-
--- Aggregate from the gold layer
-SELECT neighborhood, count(*) AS permit_count
-FROM gold.permits
-GROUP BY neighborhood
-ORDER BY permit_count DESC;
+SELECT * FROM silver.fact_parcels LIMIT 5;
 ```
 
 All DuckDB shell flags (`-json`, `-csv`, `.mode`, dot-commands, pager) work unchanged.
+
+You can find the dbt docs for the lakehouse [here](https://bnoffke.github.io/stmsn_dbt/#!/overview)
 
 ### For agents
 
@@ -157,11 +152,11 @@ from stmsn_query import connect
 con = connect()  # reads STMSN_GCS_KEY_ID / STMSN_GCS_SECRET from the environment
 
 # Pandas
-df = con.sql("SELECT * FROM silver.parcels LIMIT 100").df()
+df = con.sql("SELECT * FROM silver.fact_parcels LIMIT 100").df()
 
 # Polars
 import polars as pl
-df = pl.from_arrow(con.sql("SELECT * FROM gold.permits").arrow())
+df = pl.from_arrow(con.sql("SELECT * FROM silver.fact_parcels").arrow())
 ```
 
 Credentials can also be passed explicitly, which takes precedence over the env
@@ -186,7 +181,7 @@ def get_con():
     )
 
 con = get_con()
-df = con.sql("SELECT * FROM gold.permits LIMIT 1000").df()
+df = con.sql("SELECT * FROM silver.fact_parcels LIMIT 1000").df()
 st.dataframe(df)
 ```
 
