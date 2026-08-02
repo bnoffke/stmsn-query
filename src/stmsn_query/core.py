@@ -51,6 +51,7 @@ def connect(
     con = duckdb.connect()
     con.execute("INSTALL httpfs; LOAD httpfs;")
     con.execute("INSTALL ducklake; LOAD ducklake;")
+    con.execute("INSTALL spatial; LOAD spatial;")
     con.execute(build_secret_sql(key_id, secret))
     con.execute(f"ATTACH '{CATALOG_URI}' AS {alias} (READ_ONLY);")
     con.execute(f"USE {alias};")
